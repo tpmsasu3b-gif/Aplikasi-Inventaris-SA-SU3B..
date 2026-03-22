@@ -1,65 +1,50 @@
-function doPost(e) {
-  const data = JSON.parse(e.postData.contents);
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Inventory');
-  
-  if (data.action === 'sync') {
-    // Clear existing data (keep header)
-    const lastRow = sheet.getLastRow();
-    if (lastRow > 1) {
-      sheet.getRange(2, 1, lastRow - 1, 10).clear();
-    }
-    
-    // Insert new data
-    const rows = data.data.map(item => [
-      item.id,
-      item.code,
-      item.name,
-      item.category,
-      item.stock,
-      item.cost,
-      item.price,
-      item.location,
-      item.notes,
-      item.updatedAt
-    ]);
-    
-    if (rows.length > 0) {
-      sheet.getRange(2, 1, rows.length, 10).setValues(rows);
-    }
-    
-    return ContentService.createTextOutput(JSON.stringify({
-      success: true,
-      message: 'Data synchronized'
-    })).setMimeType(ContentService.MimeType.JSON);
-  }
-  
-  return ContentService.createTextOutput(JSON.stringify({
-    success: false,
-    error: 'Unknown action'
-  })).setMimeType(ContentService.MimeType.JSON);
+// Deteksi apakah bisa di-install
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent Chrome 67 and earlier from automatically showing the prompt
+    e.preventDefault();
+    // Stash the event so it can be triggered later
+    deferredPrompt = e;
+    // Update UI notify the user they can add to home screen
+    showInstallPromotion();
+});
+
+function showInstallPromotion() {
+    // Tampilkan banner atau button "Install App"
+    const installBanner = document.createElement('div');
+    installBanner.innerHTML = `
+        <div style="position:fixed;bottom:80px;left:20px;right:20px;background:white;padding:15px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.2);display:flex;align-items:center;gap:15px;z-index:1000;">
+            <img src="./icons/icon-72x72.png" width="40" height="40" style="border-radius:8px;">
+            <div style="flex:1;">
+                <div style="font-weight:600;">Install Inventaris App</div>
+                <div style="font-size:0.8rem;color:#6b7280;">Akses lebih cepat dari home screen</div>
+            </div>
+            <button onclick="installApp()" style="background:var(--primary);color:white;border:none;padding:10px 20px;border-radius:8px;font-weight:600;">Install</button>
+            <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#9ca3af;"><i class="fas fa-times"></i></button>
+        </div>
+    `;
+    document.body.appendChild(installBanner);
 }
 
-function doGet(e) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Inventory');
-  const data = sheet.getDataRange().getValues();
-  
-  // Convert to JSON (skip header)
-  const items = [];
-  for (let i = 1; i < data.length; i++) {
-    items.push({
-      id: data[i][0],
-      code: data[i][1],
-      name: data[i][2],
-      category: data[i][3],
-      stock: data[i][4],
-      cost: data[i][5],
-      price: data[i][6],
-      location: data[i][7],
-      notes: data[i][8],
-      updatedAt: data[i][9]
-    });
-  }
-  
-  return ContentService.createTextOutput(JSON.stringify(items))
-    .setMimeType(ContentService.MimeType.JSON);
+async function installApp() {
+    if (!deferredPrompt) return;
+    
+    // Show the install prompt
+    deferredPrompt.prompt();
+    
+    // Wait for the user to respond to the prompt
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`User response to the install prompt: ${outcome}`);
+    
+    // Clear the deferredPrompt variable
+    deferredPrompt = null;
 }
+
+// Track successful installation
+window.addEventListener('appinstalled', () => {
+    console.log('PWA was installed');
+    deferredPrompt = null;
+    // Hide install promotion
+    document.querySelector('.install-banner')?.remove();
+});
